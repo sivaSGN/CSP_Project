@@ -2,6 +2,11 @@ import os
 import sys
 from pathlib import Path
 from typing import List, Optional
+import warnings
+
+# Suppress minor deprecation warnings for cleaner CLI output
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -89,16 +94,16 @@ if __name__ == "__main__":
     # Test query from command line argument or default example
     query = sys.argv[1] if len(sys.argv) > 1 else "What are the eligibility criteria and benefits for PM-KISAN scheme?"
     
-    print(f"\n🔍 Query: {query}")
-    print(f"📦 Loading vector store & retrieving top 3 chunks...\n" + "=" * 60)
+    print(f"\n[Query]: {query}")
+    print("Loading vector store & retrieving top 3 chunks...\n" + "=" * 60)
     
     results = retrieve_relevant_chunks(query, top_k=3)
     
     if not results:
-        print("⚠️ No relevant chunks found.")
+        print("No relevant chunks found.")
     else:
         for idx, text in enumerate(results, 1):
             print(f"\n--- [Chunk {idx}] ---")
             print(text.strip())
         print("\n" + "=" * 60)
-        print(f"✅ Successfully retrieved {len(results)} chunk(s).")
+        print(f"Successfully retrieved {len(results)} chunk(s).")
