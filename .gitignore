@@ -1,0 +1,24 @@
+# Environment variables & secrets
+.env
+*.env
+
+# Python & Virtual environments
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary audio recordings
+audio/*.wav
+audio/*.mp3
+audio/*.m4a
+!audio/.gitkeep
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
