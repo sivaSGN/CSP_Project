@@ -7,6 +7,10 @@ import streamlit as st
 from audio_recorder_streamlit import audio_recorder
 from groq import Groq
 
+# Import RAG Retrieval and Generation components
+from retrieve import retrieve_with_schemes
+from rag_chain import generate_answer
+
 # Load environment variables from .env
 load_dotenv()
 
@@ -34,6 +38,12 @@ LOCALES = {
         "subtitle": "🌾 Smart Voice & Text Assistant for Central and State Agricultural Schemes",
         "badge": "Govt & State Welfare Schemes AI",
         "select_lang": "Choose Language / மொழியை தேர்ந்தெடுக்கவும் / భాషను ఎంచుకోండి",
+        "input_mode_label": "Choose Input Format:",
+        "mode_text": "✍️ Text Format (Type Question)",
+        "mode_voice": "🎙️ Voice Format (Microphone)",
+        "mode_both": "🔄 Both (Voice & Text)",
+        "text_input_title": "✍️ Text Query Input",
+        "text_input_caption": "Type your question in English, தமிழ், or తెలుగు and click 'Get Scheme Assistance'.",
         "input_header": "Ask Your Farming & Welfare Scheme Query",
         "input_placeholder": "E.g., How do I apply for PM-KISAN 17th installment? What are the crop insurance eligibility criteria?",
         "voice_record_title": "🎙️ Voice Input (Microphone Recording)",
@@ -68,6 +78,12 @@ LOCALES = {
         "subtitle": "🌾 மத்திய மற்றும் மாநில அரசு உழவர் நலத்திட்டங்களுக்கான குரல் & உரை வழிகாட்டி",
         "badge": "வேளாண் நலத்திட்ட AI உதவியாளர்",
         "select_lang": "மொழியைத் தேர்ந்தெடுக்கவும்",
+        "input_mode_label": "உள்ளீட்டு முறையைத் தேர்ந்தெடுக்கவும்:",
+        "mode_text": "✍️ உரை வடிவம் (எழுதி கேட்க)",
+        "mode_voice": "🎙️ குரல் வடிவம் (மைக்ரோஃபோன்)",
+        "mode_both": "🔄 இரண்டும் (குரல் + உரை)",
+        "text_input_title": "✍️ உரை மூலம் கேள்வி கேட்க",
+        "text_input_caption": "உங்கள் கேள்வியை தமிழ், ஆங்கிலம் அல்லது தெலுங்கில் தட்டச்சு செய்து விடை பெறுங்கள்.",
         "input_header": "உங்கள் வேளாண் மற்றும் திட்டக் கேள்வியைக் கேளுங்கள்",
         "input_placeholder": "எ.கா: பி.எம்-கிசான் உதவித்தொகை பெறுவது எப்படி? பயிர் காப்பீடு விவரங்கள் என்ன?",
         "voice_record_title": "🎙️ குரல் பதிவு (மைக்ரோஃபோன்)",
@@ -102,7 +118,13 @@ LOCALES = {
         "subtitle": "🌾 కేంద్ర, రాష్ట్ర వ్యవసాయ పథకాల కోసం ఆధునిక వాయిస్ మరియు టెక్స్ట్ అసిస్టెంట్",
         "badge": "రైతు సంక్షేమ పథకాల AI",
         "select_lang": "భాషను ఎంచుకోండి",
-        "input_header": "మీ వ్యవసాయ & పథకాల సందేహాన్ని అడగండి",
+        "input_mode_label": "ఇన్‌పుట్ విధానాన్ని ఎంచుకోండి:",
+        "mode_text": "✍️ టెక్స్ట్ ఫార్మాట్ (టైప్ చేయండి)",
+        "mode_voice": "🎙️ వాయిస్ ఫార్మాట్ (మైక్రోఫోన్)",
+        "mode_both": "🔄 రెండూ (వాయిస్ + టెక్స్ట్)",
+        "text_input_title": "✍️ ప్రశ్నను టైప్ చేయండి",
+        "text_input_caption": "మీ ప్రశ్నను తెలుగు, ఇంగ్లీష్ లేదా తమిళ్‌లో టైప్ చేసి పథకం వివరాలు పొందండి.",
+        "input_header": "మీ వ్యవసాయ & పథకాల సందேహాన్ని అడగండి",
         "input_placeholder": "ఉదాహరణ: పీఎం కిసాన్ నిధులు ఎలా పొందాలి? పంట బీమా అర్హతలు ఏమిటి?",
         "voice_record_title": "🎙️ వాయిస్ ఇన్‌పుట్ (మైక్రోఫోన్ రికార్డింగ్)",
         "voice_record_caption": "మీ వాయిస్ రికార్డ్ చేయడానికి క్రింది మైక్రోఫోన్ బటన్‌ను క్లిక్ చేయండి.",
@@ -563,6 +585,24 @@ st.markdown("""
         color: #14532d;
     }
 
+    .text-box-container {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1.5px solid #cbd5e1;
+        border-radius: 16px;
+        padding: 1.2rem 1.4rem;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 4px 12px rgba(100, 116, 139, 0.06);
+    }
+
+    .mode-selector-card {
+        background: #ffffff;
+        border: 1.5px solid #bbf7d0;
+        border-radius: 14px;
+        padding: 0.8rem 1.2rem;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 2px 8px rgba(34, 197, 94, 0.06);
+    }
+
     /* Streamlit Button Tweaks */
     div.stButton > button {
         border-radius: 12px !important;
@@ -596,6 +636,9 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 if "selected_lang" not in st.session_state:
     st.session_state.selected_lang = "English"
+
+if "input_mode_choice" not in st.session_state:
+    st.session_state.input_mode_choice = "text"
 
 if "user_query" not in st.session_state:
     st.session_state.user_query = ""
@@ -764,121 +807,173 @@ st.markdown(
 )
 
 # -----------------------------------------------------------------------------
-# 10. Voice Recording Section (audio-recorder-streamlit & Groq Whisper)
+# 10. Input Format Selection & Query Area (Text & Voice)
 # -----------------------------------------------------------------------------
+mode_options = [loc['mode_text'], loc['mode_voice'], loc['mode_both']]
+if "input_mode_idx" not in st.session_state:
+    st.session_state.input_mode_idx = 0  # Default to Text Format
+
 st.markdown(
     f"""
-    <div class="voice-box-container">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-            <span style="font-size: 1.3rem;">🎙️</span>
-            <b style="font-size: 1.05rem; color: #166534;">{loc['voice_record_title']}</b>
-            <span style="background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; border: 1px solid #bbf7d0;">Groq Whisper whisper-large-v3-turbo</span>
-        </div>
-        <div style="font-size: 0.88rem; color: #374151; margin-bottom: 10px;">
-            {loc['voice_record_caption']}
-        </div>
+    <div class="mode-selector-card">
+        <span style="font-size: 1rem; font-weight: 700; color: #166534;">🧭 {loc['input_mode_label']}</span>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-rec_col1, rec_col2 = st.columns([1, 3])
+selected_mode = st.radio(
+    label=loc['input_mode_label'],
+    options=mode_options,
+    index=st.session_state.input_mode_idx,
+    horizontal=True,
+    label_visibility="collapsed",
+    key="input_mode_radio"
+)
+st.session_state.input_mode_idx = mode_options.index(selected_mode)
 
-with rec_col1:
-    audio_bytes = audio_recorder(
-        text="Click to record",
-        recording_color="#dc2626",
-        neutral_color="#16a34a",
-        icon_name="microphone",
-        icon_size="2x",
-        pause_threshold=2.0
-    )
+show_text_mode = (selected_mode in [loc['mode_text'], loc['mode_both']])
+show_voice_mode = (selected_mode in [loc['mode_voice'], loc['mode_both']])
 
-with rec_col2:
-    # Check if a new audio recording was captured
-    if audio_bytes and audio_bytes != st.session_state.last_audio_bytes:
-        st.session_state.last_audio_bytes = audio_bytes
-        
-        # 1. Save audio as WAV file into audio/ folder
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        wav_filename = f"query_{timestamp}.wav"
-        wav_path = AUDIO_DIR / wav_filename
+submit_clicked = False
+query_text = ""
 
-        try:
-            with open(wav_path, "wb") as f:
-                f.write(audio_bytes)
-            st.session_state.last_recorded_file = str(wav_path)
-            
-            # 2. Send audio to Groq Whisper API (whisper-large-v3-turbo)
-            with st.spinner(loc['voice_transcribing']):
-                success, transcription_result = transcribe_audio_with_groq(
-                    file_path=str(wav_path),
-                    api_key=st.session_state.groq_api_key or os.getenv("GROQ_API_KEY", "")
-                )
-
-            # 3. Handle transcription result
-            if success:
-                st.session_state.user_query = transcription_result
-                st.session_state.last_transcription = transcription_result
-                st.session_state.has_searched = True
-                st.rerun()
-            else:
-                st.error(f"❌ {transcription_result}")
-
-        except Exception as file_err:
-            st.error(f"❌ Error saving or processing audio file: {str(file_err)}")
-
-# Show audio preview and transcription badge if available
-if st.session_state.last_recorded_file and os.path.exists(st.session_state.last_recorded_file):
-    with st.expander(loc['audio_playback_label'], expanded=False):
-        st.audio(st.session_state.last_recorded_file, format="audio/wav")
-        st.caption(f"📁 Saved file: `{st.session_state.last_recorded_file}`")
-
-if st.session_state.last_transcription:
+# -----------------------------------------------------------------------------
+# A. Voice Recording Section (if Voice or Dual mode selected)
+# -----------------------------------------------------------------------------
+if show_voice_mode:
     st.markdown(
         f"""
-        <div class="transcription-badge">
-            <span style="color: #15803d; font-weight: 700; font-size: 0.9rem;">{loc['transcribed_success']}</span>
-            <div style="margin-top: 4px; font-size: 1.05rem; color: #1e293b; font-weight: 500;">
-                "{st.session_state.last_transcription}"
+        <div class="voice-box-container">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span style="font-size: 1.3rem;">🎙️</span>
+                <b style="font-size: 1.05rem; color: #166534;">{loc['voice_record_title']}</b>
+                <span style="background: #dcfce7; color: #15803d; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; border: 1px solid #bbf7d0;">Groq Whisper whisper-large-v3-turbo</span>
+            </div>
+            <div style="font-size: 0.88rem; color: #374151; margin-bottom: 10px;">
+                {loc['voice_record_caption']}
             </div>
         </div>
         """,
         unsafe_allow_html=True
     )
 
+    rec_col1, rec_col2 = st.columns([1, 3])
+
+    with rec_col1:
+        audio_bytes = audio_recorder(
+            text="Click to record",
+            recording_color="#dc2626",
+            neutral_color="#16a34a",
+            icon_name="microphone",
+            icon_size="2x",
+            pause_threshold=2.0
+        )
+
+    with rec_col2:
+        # Check if a new audio recording was captured
+        if audio_bytes and audio_bytes != st.session_state.last_audio_bytes:
+            st.session_state.last_audio_bytes = audio_bytes
+            
+            # 1. Save audio as WAV file into audio/ folder
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            wav_filename = f"query_{timestamp}.wav"
+            wav_path = AUDIO_DIR / wav_filename
+
+            try:
+                with open(wav_path, "wb") as f:
+                    f.write(audio_bytes)
+                st.session_state.last_recorded_file = str(wav_path)
+                
+                # 2. Send audio to Groq Whisper API (whisper-large-v3-turbo)
+                with st.spinner(loc['voice_transcribing']):
+                    success, transcription_result = transcribe_audio_with_groq(
+                        file_path=str(wav_path),
+                        api_key=st.session_state.groq_api_key or os.getenv("GROQ_API_KEY", "")
+                    )
+
+                # 3. Handle transcription result
+                if success:
+                    st.session_state.user_query = transcription_result
+                    st.session_state.last_transcription = transcription_result
+                    st.session_state.has_searched = True
+                    st.rerun()
+                else:
+                    st.error(f"❌ {transcription_result}")
+
+            except Exception as file_err:
+                st.error(f"❌ Error saving or processing audio file: {str(file_err)}")
+
+    # Show audio preview and transcription badge if available
+    if st.session_state.last_recorded_file and os.path.exists(st.session_state.last_recorded_file):
+        with st.expander(loc['audio_playback_label'], expanded=False):
+            st.audio(st.session_state.last_recorded_file, format="audio/wav")
+            st.caption(f"📁 Saved file: `{st.session_state.last_recorded_file}`")
+
+    if st.session_state.last_transcription:
+        st.markdown(
+            f"""
+            <div class="transcription-badge">
+                <span style="color: #15803d; font-weight: 700; font-size: 0.9rem;">{loc['transcribed_success']}</span>
+                <div style="margin-top: 4px; font-size: 1.05rem; color: #1e293b; font-weight: 500;">
+                    "{st.session_state.last_transcription}"
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
 # -----------------------------------------------------------------------------
-# 11. Interactive Text Query Input Area
+# B. Interactive Text Query Input Section (if Text or Dual mode selected)
 # -----------------------------------------------------------------------------
-st.markdown("---")
-st.markdown(f"#### 💬 {loc['input_header']}")
+if show_text_mode:
+    if show_voice_mode:
+        st.markdown("---")
 
-# Quick suggestion chips
-st.markdown(f"<span style='color: #475569; font-size: 0.88rem; font-weight: 600;'>{loc['quick_topics_label']}</span>", unsafe_allow_html=True)
-chip_cols = st.columns(len(loc['quick_topics']))
-for idx, topic in enumerate(loc['quick_topics']):
-    with chip_cols[idx]:
-        if st.button(f"📌 {topic}", key=f"chip_{idx}", use_container_width=True):
-            st.session_state.user_query = topic
-            st.session_state.has_searched = True
+    st.markdown(
+        f"""
+        <div class="text-box-container">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <span style="font-size: 1.2rem;">✍️</span>
+                <b style="font-size: 1.05rem; color: #1e293b;">{loc['text_input_title']}</b>
+            </div>
+            <div style="font-size: 0.88rem; color: #64748b; margin-bottom: 8px;">
+                {loc['text_input_caption']}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-# Text Input Area
-query_text = st.text_area(
-    label="Farmer Query Input",
-    value=st.session_state.user_query,
-    placeholder=loc['input_placeholder'],
-    height=90,
-    label_visibility="collapsed"
-)
+    # Quick suggestion chips
+    st.markdown(f"<span style='color: #475569; font-size: 0.88rem; font-weight: 600;'>{loc['quick_topics_label']}</span>", unsafe_allow_html=True)
+    chip_cols = st.columns(len(loc['quick_topics']))
+    for idx, topic in enumerate(loc['quick_topics']):
+        with chip_cols[idx]:
+            if st.button(f"📌 {topic}", key=f"chip_{idx}", use_container_width=True):
+                st.session_state.user_query = topic
+                st.session_state.has_searched = True
 
-# Action Buttons Row
+    # Text Input Area
+    query_text = st.text_area(
+        label="Farmer Query Input",
+        value=st.session_state.user_query,
+        placeholder=loc['input_placeholder'],
+        height=95,
+        label_visibility="collapsed",
+        key="farmer_query_text_area"
+    )
+
+# -----------------------------------------------------------------------------
+# C. Action Buttons (Submit & Clear)
+# -----------------------------------------------------------------------------
 btn_col1, btn_col2 = st.columns([2, 1])
 
 with btn_col1:
-    submit_clicked = st.button(loc['submit_btn'], use_container_width=True, type="primary")
+    submit_clicked = st.button(loc['submit_btn'], use_container_width=True, type="primary", key="main_submit_btn")
 
 with btn_col2:
-    if st.button(loc['clear_btn'], use_container_width=True):
+    if st.button(loc['clear_btn'], use_container_width=True, key="main_clear_btn"):
         st.session_state.user_query = ""
         st.session_state.last_transcription = ""
         st.session_state.has_searched = False
@@ -887,7 +982,7 @@ with btn_col2:
         st.rerun()
 
 # -----------------------------------------------------------------------------
-# 12. Execution & Scheme Response Presentation Area
+# 12. RAG Execution & Response Presentation Area
 # -----------------------------------------------------------------------------
 current_query = query_text.strip() or st.session_state.user_query.strip()
 
@@ -895,43 +990,79 @@ if submit_clicked or (st.session_state.has_searched and current_query):
     if not current_query:
         st.warning("⚠️ Please enter a question or record your voice to ask your query.")
     else:
-        with st.spinner("🌾 Consulting Government Scheme Knowledge Base..."):
-            time.sleep(0.3)  # Smooth transition
-            result = get_scheme_response(current_query, st.session_state.selected_lang)
-
+        # Step 1: User Question Display
         st.markdown(
             f"""
-            <div class="response-card">
-                <div class="response-header">
-                    <span style="font-size: 1.8rem;">🏛️</span>
-                    <div>
-                        <span class="tag-badge">Verified Scheme Details</span>
-                        <h3 style="margin: 0; color: #1b5e20;">{result['title']}</h3>
-                    </div>
+            <div style="background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 14px; padding: 1rem 1.2rem; margin-top: 1.5rem; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                <span style="color: #047857; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">💬 User Question</span>
+                <div style="font-size: 1.12rem; font-weight: 600; color: #1e293b; margin-top: 4px;">
+                    {current_query}
                 </div>
-                <p style="font-size: 1.05rem; line-height: 1.6; color: #334155; margin-bottom: 1.2rem;">
-                    {result['overview']}
-                </p>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        res_col1, res_col2 = st.columns(2)
+        # Step 2 & 3: Retrieve Context and Generate Answer
+        with st.spinner("🌾 Retrieving scheme knowledge and generating answer with Groq..."):
+            try:
+                # Retrieve top chunks and source scheme names from FAISS
+                chunks, scheme_names = retrieve_with_schemes(current_query, top_k=3)
+                
+                # Generate final answer using Groq API (openai/gpt-oss-20b)
+                final_answer = generate_answer(
+                    question=current_query,
+                    retrieved_context=chunks,
+                    scheme_names=scheme_names,
+                    model="openai/gpt-oss-20b"
+                )
+            except Exception as rag_err:
+                chunks, scheme_names = [], []
+                final_answer = f"⚠️ Error processing query: {str(rag_err)}"
 
-        with res_col1:
-            st.markdown(f"##### {loc['benefits_title']}")
-            for benefit in result['benefits']:
-                st.markdown(f"- 🟢 **{benefit}**")
+        # Step 4: Display Retrieved Sources & Final Answer
+        
+        # Display Sources Card
+        st.markdown(
+            """
+            <div style="margin-top: 1.2rem; margin-bottom: 0.5rem;">
+                <span style="font-size: 0.95rem; font-weight: 700; color: #166534;">📚 Retrieved Sources</span>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            st.markdown(f"##### {loc['docs_needed']}")
-            for doc in result['docs']:
-                st.markdown(f"- 📄 {doc}")
+        if scheme_names:
+            badges_html = " ".join([f'<span class="tag-badge">🏛️ {s}</span>' for s in scheme_names])
+            st.markdown(f"<div>{badges_html}</div>", unsafe_allow_html=True)
+        else:
+            st.caption("No specific matching scheme identified in knowledge base.")
 
-        with res_col2:
-            st.markdown(f"##### {loc['steps_title']}")
-            for i, step in enumerate(result['steps'], 1):
-                st.markdown(f"**{i}.** {step}")
+        if chunks:
+            with st.expander(f"🔍 View {len(chunks)} Retrieved Context Chunks (FAISS vector_db)", expanded=False):
+                for idx, chunk in enumerate(chunks, 1):
+                    st.markdown(f"**Chunk {idx}:**")
+                    st.info(chunk)
+
+        # Display Final Answer Card
+        st.markdown(
+            f"""
+            <div class="response-card">
+                <div class="response-header">
+                    <span style="font-size: 1.8rem;">📢</span>
+                    <div>
+                        <span class="tag-badge">AI Welfare Assistant Response</span>
+                        <h3 style="margin: 0; color: #1b5e20;">Final Answer</h3>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # Render markdown answer inside container for crisp formatting
+        with st.container():
+            st.markdown(final_answer)
 
         # Helpline Banner
         st.markdown(
